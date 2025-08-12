@@ -1,8 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Скрипт для копирования файлов из одной директории в другую с переименованием
-и добавлением расширения .txt
+Скрипт для копирования файлов из одной директории в другую с переименованием,
+добавлением расширения .txt и сохранением структуры каталогов
+
+Особенности:
+- Рекурсивный поиск файлов по указанным форматам
+- Сохранение структуры каталогов при копировании
+- Добавление расширения .txt к скопированным файлам
+- Обработка дубликатов имен файлов
+
+Автор: @hmaster20
+Дата создания: 2025
+Версия: 2.0
 """
 
 import os
@@ -12,9 +22,9 @@ import sys
 from pathlib import Path
 
 # Переменные по умолчанию
-DEFAULT_SOURCE_DIR = r"D:\Repo"  # Исходная директория по умолчанию
+DEFAULT_SOURCE_DIR = r"D:\Repo"                                         # Исходная директория по умолчанию
 DEFAULT_FILE_FORMATS = ['.php', '.js', '.py', '.html', '.css', '.txt']  # Форматы файлов для поиска
-DEFAULT_DESTINATION_DIR = os.path.join(os.getcwd(), 'destination')  # Директория назначения
+DEFAULT_DESTINATION_DIR = os.path.join(os.getcwd(), 'Destination')      # Директория назначения
 
 def create_destination_dir(dest_path):
     """
@@ -61,12 +71,14 @@ def find_files_by_format(source_dir, file_formats):
     print(f"Найдено файлов: {len(found_files)}")
     return found_files
 
-def copy_and_rename_files(files_list, destination_dir):
+def copy_and_rename_files(files_list, source_dir, destination_dir):
     """
-    Копирует файлы в директорию назначения и переименовывает их, добавляя .txt
+    Копирует файлы в директорию назначения с сохранением структуры каталогов
+    и переименовывает их, добавляя .txt
     
     Args:
         files_list (list): Список файлов для копирования
+        source_dir (str): Исходная директория (для определения относительного пути)
         destination_dir (str): Директория назначения
     """
     if not files_list:
@@ -78,14 +90,27 @@ def copy_and_rename_files(files_list, destination_dir):
     
     for file_path in files_list:
         try:
-            # Получаем имя файла без пути
-            file_name = os.path.basename(file_path)
+            # Получаем относительный путь файла относительно исходной директории
+            relative_path = os.path.relpath(file_path, source_dir)
+            
+            # Получаем директорию файла и имя файла
+            rel_dir = os.path.dirname(relative_path)
+            file_name = os.path.basename(relative_path)
             
             # Создаем новое имя файла с добавлением .txt
             new_file_name = file_name + '.txt'
             
+            # Создаем полный путь к директории назначения с сохранением структуры
+            if rel_dir:  # Если файл не в корне исходной директории
+                dest_dir_path = os.path.join(destination_dir, rel_dir)
+            else:
+                dest_dir_path = destination_dir
+            
+            # Создаем директории, если они не существуют
+            os.makedirs(dest_dir_path, exist_ok=True)
+            
             # Полный путь к файлу назначения
-            dest_file_path = os.path.join(destination_dir, new_file_name)
+            dest_file_path = os.path.join(dest_dir_path, new_file_name)
             
             # Если файл с таким именем уже существует, добавляем номер
             counter = 1
@@ -93,12 +118,18 @@ def copy_and_rename_files(files_list, destination_dir):
                 name_without_ext = os.path.splitext(file_name)[0]
                 ext = os.path.splitext(file_name)[1]
                 new_file_name = f"{name_without_ext}_{counter}{ext}.txt"
-                dest_file_path = os.path.join(destination_dir, new_file_name)
+                dest_file_path = os.path.join(dest_dir_path, new_file_name)
                 counter += 1
             
             # Копируем файл
             shutil.copy2(file_path, dest_file_path)
-            print(f"Скопирован: {file_name} -> {new_file_name}")
+            
+            # Выводим информацию о копировании с указанием структуры
+            if rel_dir:
+                print(f"Скопирован: {rel_dir}\\{file_name} -> {rel_dir}\\{new_file_name}")
+            else:
+                print(f"Скопирован: {file_name} -> {new_file_name}")
+            
             copied_count += 1
             
         except Exception as e:
@@ -108,6 +139,7 @@ def copy_and_rename_files(files_list, destination_dir):
     print(f"\nРезультат копирования:")
     print(f"Успешно скопировано: {copied_count} файлов")
     print(f"Ошибок: {error_count}")
+    print(f"Структура каталогов сохранена в: {destination_dir}")
 
 def parse_file_formats(formats_str):
     """
@@ -138,6 +170,8 @@ def main():
   python renamer.py -s "C:\\MyFiles" -d "C:\\Output"
   python renamer.py --source "D:\\Projects" --formats "php,js,html"
   python renamer.py -s "E:\\Code" -d "E:\\Backup" -f "py,txt,md"
+
+Примечание: Структура каталогов исходной директории будет сохранена в директории назначения.
         """
     )
     
@@ -162,13 +196,14 @@ def main():
     file_formats = parse_file_formats(args.formats)
     
     # Выводим информацию о настройках
-    print("=" * 60)
-    print("СКРИПТ КОПИРОВАНИЯ ФАЙЛОВ С ПЕРЕИМЕНОВАНИЕМ")
-    print("=" * 60)
+    print("=" * 70)
+    print("СКРИПТ КОПИРОВАНИЯ ФАЙЛОВ С СОХРАНЕНИЕМ СТРУКТУРЫ КАТАЛОГОВ")
+    print("=" * 70)
     print(f"Исходная директория: {source_directory}")
     print(f"Директория назначения: {destination_directory}")
     print(f"Форматы файлов: {', '.join(file_formats)}")
-    print("=" * 60)
+    print(f"Структура каталогов: будет сохранена")
+    print("=" * 70)
     
     # Создаем директорию назначения
     create_destination_dir(destination_directory)
@@ -176,8 +211,8 @@ def main():
     # Ищем файлы
     files_to_copy = find_files_by_format(source_directory, file_formats)
     
-    # Копируем и переименовываем файлы
-    copy_and_rename_files(files_to_copy, destination_directory)
+    # Копируем и переименовываем файлы с сохранением структуры
+    copy_and_rename_files(files_to_copy, source_directory, destination_directory)
     
     print("\nСкрипт завершен!")
 
