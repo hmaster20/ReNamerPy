@@ -11,6 +11,27 @@
 
 Примеры запуска:
 
+```bash
 python renamer.py - с настройками по умолчанию
 python renamer.py -s "C:\MyFiles" -d "C:\Backup" - с указанием своих путей
 python renamer.py -f "php,js,html" - с указанием форматов файлов
+```
+
+## Окружение
+
+```shell
+# Создаем виртуальное окружение
+python -m venv venv
+
+# Активируем его
+venv\Scripts\activate
+
+# Устанавливаем зависимости
+pip install -r requirements.txt
+# pip install pyautogui
+# pip freeze > requirements.txt
+# pip install --proxy http://server.local:3128 -r requirements.txt
+
+# Запускаем
+python renamer_v2.py
+```
