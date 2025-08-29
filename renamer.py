@@ -2,19 +2,16 @@
 # -*- coding: utf-8 -*-
 """
 Скрипт для копирования файлов из одной директории в другую с переименованием,
-добавлением расширения .txt и сохранением структуры каталогов
-
+добавлением расширения .txt и возможностью сохранения или игнорирования структуры каталогов
 Особенности:
 - Рекурсивный поиск файлов по указанным форматам
-- Сохранение структуры каталогов при копировании
+- Возможность сохранения структуры каталогов или копирования в плоскую структуру
 - Добавление расширения .txt к скопированным файлам
 - Обработка дубликатов имен файлов
-
 Автор: @hmaster20
 Дата создания: 2025
-Версия: 2.0
+Версия: 2.1
 """
-
 import os
 import shutil
 import argparse
@@ -29,7 +26,6 @@ DEFAULT_DESTINATION_DIR = os.path.join(os.getcwd(), 'Destination')      # Дир
 def create_destination_dir(dest_path):
     """
     Создает директорию назначения, если она не существует
-    
     Args:
         dest_path (str): Путь к директории назначения
     """
@@ -43,16 +39,13 @@ def create_destination_dir(dest_path):
 def find_files_by_format(source_dir, file_formats):
     """
     Ищет файлы в исходной директории по заданным форматам
-    
     Args:
         source_dir (str): Исходная директория для поиска
         file_formats (list): Список расширений файлов для поиска
-        
     Returns:
         list: Список найденных файлов
     """
     found_files = []
-    
     if not os.path.exists(source_dir):
         print(f"Ошибка: Исходная директория не существует: {source_dir}")
         return found_files
@@ -67,19 +60,18 @@ def find_files_by_format(source_dir, file_formats):
             if file_ext in file_formats:
                 file_path = os.path.join(root, file)
                 found_files.append(file_path)
-                
+    
     print(f"Найдено файлов: {len(found_files)}")
     return found_files
 
-def copy_and_rename_files(files_list, source_dir, destination_dir):
+def copy_and_rename_files(files_list, source_dir, destination_dir, flat_structure=False):
     """
-    Копирует файлы в директорию назначения с сохранением структуры каталогов
-    и переименовывает их, добавляя .txt
-    
+    Копирует файлы в директорию назначения и переименовывает их, добавляя .txt
     Args:
         files_list (list): Список файлов для копирования
         source_dir (str): Исходная директория (для определения относительного пути)
         destination_dir (str): Директория назначения
+        flat_structure (bool): Если True, копирование в плоскую структуру (в один каталог)
     """
     if not files_list:
         print("Нет файлов для копирования")
@@ -92,19 +84,21 @@ def copy_and_rename_files(files_list, source_dir, destination_dir):
         try:
             # Получаем относительный путь файла относительно исходной директории
             relative_path = os.path.relpath(file_path, source_dir)
-            
-            # Получаем директорию файла и имя файла
-            rel_dir = os.path.dirname(relative_path)
+            # Получаем имя файла
             file_name = os.path.basename(relative_path)
-            
             # Создаем новое имя файла с добавлением .txt
             new_file_name = file_name + '.txt'
             
-            # Создаем полный путь к директории назначения с сохранением структуры
-            if rel_dir:  # Если файл не в корне исходной директории
-                dest_dir_path = os.path.join(destination_dir, rel_dir)
-            else:
+            if flat_structure:
+                # Для плоской структуры все файлы копируются в корень destination_dir
                 dest_dir_path = destination_dir
+            else:
+                # Создаем полный путь к директории назначения с сохранением структуры
+                rel_dir = os.path.dirname(relative_path)
+                if rel_dir:  # Если файл не в корне исходной директории
+                    dest_dir_path = os.path.join(destination_dir, rel_dir)
+                else:
+                    dest_dir_path = destination_dir
             
             # Создаем директории, если они не существуют
             os.makedirs(dest_dir_path, exist_ok=True)
@@ -124,14 +118,17 @@ def copy_and_rename_files(files_list, source_dir, destination_dir):
             # Копируем файл
             shutil.copy2(file_path, dest_file_path)
             
-            # Выводим информацию о копировании с указанием структуры
-            if rel_dir:
-                print(f"Скопирован: {rel_dir}\\{file_name} -> {rel_dir}\\{new_file_name}")
-            else:
+            # Выводим информацию о копировании
+            if flat_structure:
                 print(f"Скопирован: {file_name} -> {new_file_name}")
+            else:
+                rel_dir = os.path.dirname(relative_path)
+                if rel_dir:
+                    print(f"Скопирован: {rel_dir}\\{file_name} -> {rel_dir}\\{new_file_name}")
+                else:
+                    print(f"Скопирован: {file_name} -> {new_file_name}")
             
             copied_count += 1
-            
         except Exception as e:
             print(f"Ошибка при копировании {file_path}: {e}")
             error_count += 1
@@ -139,15 +136,17 @@ def copy_and_rename_files(files_list, source_dir, destination_dir):
     print(f"\nРезультат копирования:")
     print(f"Успешно скопировано: {copied_count} файлов")
     print(f"Ошибок: {error_count}")
-    print(f"Структура каталогов сохранена в: {destination_dir}")
+    
+    if flat_structure:
+        print(f"Файлы скопированы в плоскую структуру: {destination_dir}")
+    else:
+        print(f"Структура каталогов сохранена в: {destination_dir}")
 
 def parse_file_formats(formats_str):
     """
     Парсит строку с форматами файлов и возвращает список
-    
     Args:
         formats_str (str): Строка с форматами через запятую
-        
     Returns:
         list: Список форматов файлов
     """
@@ -170,22 +169,23 @@ def main():
   python renamer.py -s "C:\\MyFiles" -d "C:\\Output"
   python renamer.py --source "D:\\Projects" --formats "php,js,html"
   python renamer.py -s "E:\\Code" -d "E:\\Backup" -f "py,txt,md"
+  python renamer.py --flat  # Копирование в плоскую структуру
+  python renamer.py -s "D:\\Source" -d "D:\\Destination" --flat
 
-Примечание: Структура каталогов исходной директории будет сохранена в директории назначения.
+Примечание: По умолчанию структура каталогов исходной директории будет сохранена в директории назначения.
         """
     )
-    
     parser.add_argument('-s', '--source', 
                        default=DEFAULT_SOURCE_DIR,
                        help=f'Исходная директория (по умолчанию: {DEFAULT_SOURCE_DIR})')
-    
     parser.add_argument('-d', '--destination',
                        default=DEFAULT_DESTINATION_DIR,
                        help=f'Директория назначения (по умолчанию: {DEFAULT_DESTINATION_DIR})')
-    
     parser.add_argument('-f', '--formats',
                        default=','.join(DEFAULT_FILE_FORMATS),
                        help=f'Форматы файлов через запятую (по умолчанию: {",".join(DEFAULT_FILE_FORMATS)})')
+    parser.add_argument('--flat', action='store_true', 
+                       help='Копировать файлы в плоскую структуру (в один каталог без иерархии)')
     
     # Парсим аргументы
     args = parser.parse_args()
@@ -197,12 +197,12 @@ def main():
     
     # Выводим информацию о настройках
     print("=" * 70)
-    print("СКРИПТ КОПИРОВАНИЯ ФАЙЛОВ С СОХРАНЕНИЕМ СТРУКТУРЫ КАТАЛОГОВ")
+    print("СКРИПТ КОПИРОВАНИЯ ФАЙЛОВ")
     print("=" * 70)
     print(f"Исходная директория: {source_directory}")
     print(f"Директория назначения: {destination_directory}")
     print(f"Форматы файлов: {', '.join(file_formats)}")
-    print(f"Структура каталогов: будет сохранена")
+    print(f"Структура каталогов: {'плоская (без иерархии)' if args.flat else 'сохраняется'}")
     print("=" * 70)
     
     # Создаем директорию назначения
@@ -211,8 +211,8 @@ def main():
     # Ищем файлы
     files_to_copy = find_files_by_format(source_directory, file_formats)
     
-    # Копируем и переименовываем файлы с сохранением структуры
-    copy_and_rename_files(files_to_copy, source_directory, destination_directory)
+    # Копируем и переименовываем файлы
+    copy_and_rename_files(files_to_copy, source_directory, destination_directory, args.flat)
     
     print("\nСкрипт завершен!")
 
